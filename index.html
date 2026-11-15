@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Cờ Vua AI - Luyện Tập Nhận Diện Thế Khó</title>
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --accent: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text: #f8fafc;
+            --subtext: #94a3b8;
+            --border: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100dvh;
+            background-color: var(--bg-color);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow-x: hidden;
+            overscroll-behavior: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .app-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 540px;
+            min-height: 100dvh;
+            margin: 0 auto;
+            padding: 8px 0;
+        }
+
+        .controls-container {
+            width: 100%;
+            padding: 0 10px;
+        }
+
+        .toolbar {
+            display: grid;
+            grid-template-columns: 1fr 1.3fr 1.1fr;
+            gap: 6px;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+
+        .toolbar-3 {
+            display: grid;
+            grid-template-columns: 1.3fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+
+        .select-box, .toggle-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            padding: 10px 6px;
+            border-radius: 10px;
+            font-size: 13px;
+            color: var(--subtext);
+        }
+
+        .toggle-box input {
+            accent-color: var(--accent);
+            width: 16px;
+            height: 16px;
+            margin: 0;
+        }
+
+        .toggle-box span {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        select {
+            background: transparent;
+            color: var(--text);
+            border: none;
+            font-weight: 700;
+            font-size: 13px;
+            outline: none;
+        }
+
+        select option {
+            background: var(--panel-bg);
+        }
+
+        button {
+            padding: 12px 6px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            color: white;
+        }
+
+        button:active {
+            transform: scale(0.97);
+            opacity: 0.9;
+        }
+
+        .btn-ai { background: var(--accent); }
+        .btn-reset { background: var(--danger); }
+        .btn-undo { background: #475569; }
+
+        #boardContainer {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 4px 0;
+        }
+
+        #myBoard {
+            width: 100vw;
+            max-width: 540px;
+            touch-action: none;
+            border-top: 2px solid var(--border);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .status-bar {
+            width: 100%;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 10px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            transition: all 0.25s ease;
+        }
+
+        .status-critical {
+            background: rgba(245, 158, 11, 0.25);
+            border-color: var(--warning);
+            color: #fde68a;
+        }
+
+        .highlight-move {
+            box-shadow: inset 0 0 4px 4px rgba(16, 185, 129, 0.9);
+        }
+
+        .highlight-selected {
+            box-shadow: inset 0 0 4px 4px rgba(250, 204, 21, 0.95);
+        }
+
+        .possible-move {
+            position: relative;
+        }
+        .possible-move::after {
+            content: '';
+            position: absolute;
+            width: 30%;
+            height: 30%;
+            background: rgba(16, 185, 129, 0.8);
+            border-radius: 50%;
+            top: 35%;
+            left: 35%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-wrapper">
+    <div class="controls-container">
+        <div class="toolbar">
+            <div class="select-box">
+                <span>Phe:</span>
+                <select id="orientationSelect" onchange="changeOrientation()">
+                    <option value="white">Trắng</option>
+                    <option value="black">Đen</option>
+                </select>
+            </div>
+
+            <div class="select-box">
+                <span>Mức Elo:</span>
+                <select id="eloSelect" onchange="updateAIElo()">
+                    <option value="300">300 (Tập sự)</option>
+                    <option value="500">500 (Thực chiến)</option>
+                    <option value="650" selected>650 (Mục tiêu)</option>
+                    <option value="800">800 (Nâng cao)</option>
+                    <option value="1100">1100 (Thử thách)</option>
+                </select>
+            </div>
+
+            <label class="toggle-box">
+                <input type="checkbox" id="autoReplyToggle" checked>
+                <span>Tự Đáp</span>
+            </label>
+        </div>
+
+        <div class="toolbar-3">
+            <button class="btn-ai" onclick="triggerAIMove()">AI Đi Ngay</button>
+            <button class="btn-undo" onclick="undoMove()">Đi Lại</button>
+            <button class="btn-reset" onclick="resetGame()">Làm Mới</button>
+        </div>
+    </div>
+
+    <div id="boardContainer">
+        <div id="myBoard"></div>
+    </div>
+
+    <div class="controls-container">
+        <div class="status-bar" id="status">Đang khởi tạo hệ thống...</div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+
+<script>
+    document.addEventListener('touchmove', function (event) {
+        if (event.scale !== undefined && event.scale !== 1) event.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('gesturestart', function (event) {
+        event.preventDefault();
+    });
+
+    var lastTouchEnd = 0;
+    document.addEventListener('touchend', function (event) {
+        var now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) event.preventDefault();
+        lastTouchEnd = now;
+    }, { passive: false });
+
+    var board = null;
+    var game = new Chess();
+    var stockfish = null;
+    var isThinking = false;
+    var isEvaluatingPosition = false;
+    var moveHistoryUCI = [];
+    var selectedSquare = null;
+    var evalScores = {};
+
+    function updateAIElo() {
+        if (!stockfish) return;
+        var eloVal = $('#eloSelect').val();
+        stockfish.postMessage('setoption name UCI_LimitStrength value true');
+        stockfish.postMessage('setoption name UCI_Elo value ' + eloVal);
+        updateStatus('Đã đổi mức luyện tập: ' + eloVal + ' Elo.');
+    }
+
+    async function initStockfish() {
+        try {
+            const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+            const scriptText = await response.text();
+            const blob = new Blob([scriptText], { type: 'application/javascript' });
+            const workerUrl = URL.createObjectURL(blob);
+
+            stockfish = new Worker(workerUrl);
+            stockfish.postMessage('uci');
+            stockfish.postMessage('setoption name Hash value 16');
+            stockfish.postMessage('setoption name MultiPV value 2'); // Phân tích 2 nhánh để bắt thế khó
+            stockfish.postMessage('setoption name UCI_LimitStrength value true');
+            stockfish.postMessage('setoption name UCI_Elo value 650');
+            stockfish.postMessage('ucinewgame');
+
+            stockfish.onmessage = function(event) {
+                var message = event.data;
+
+                if (message.startsWith('info') && message.includes('multipv')) {
+                    var pvMatch = message.match(/multipv (\d+)/);
+                    var cpMatch = message.match(/score cp (-?\d+)/);
+                    var mateMatch = message.match(/score mate (-?\d+)/);
+
+                    if (pvMatch) {
+                        var pvIndex = pvMatch[1];
+                        if (mateMatch) {
+                            evalScores[pvIndex] = parseInt(mateMatch[1]) > 0 ? 10000 : -10000;
+                        } else if (cpMatch) {
+                            evalScores[pvIndex] = parseInt(cpMatch[1]);
+                        }
+                    }
+                }
+
+                if (message.startsWith('bestmove')) {
+                    var moveStr = message.split(' ')[1];
+                    if (isEvaluatingPosition) {
+                        isEvaluatingPosition = false;
+                        checkPositionDifficulty();
+                    } else {
+                        executeBestMove(moveStr);
+                    }
+                }
+            };
+            updateStatus('Sẵn sàng luyện tập (Mức 650 Elo)! Chạm quân để đánh.');
+        } catch (error) {
+            updateStatus('Lỗi mạng: Không tải được Stockfish.');
+        }
+    }
+
+    function evaluateUserTurnDifficulty() {
+        if (!stockfish || game.game_over()) return;
+        isEvaluatingPosition = true;
+        evalScores = {};
+        if (moveHistoryUCI.length > 0) {
+            stockfish.postMessage('position startpos moves ' + moveHistoryUCI.join(' '));
+        } else {
+            stockfish.postMessage('position startpos');
+        }
+        stockfish.postMessage('go movetime 180');
+    }
+
+    function checkPositionDifficulty() {
+        var statusEl = $('#status');
+        statusEl.removeClass('status-critical');
+
+        if (evalScores['1'] !== undefined && evalScores['2'] !== undefined) {
+            var diff = Math.abs(evalScores['1'] - evalScores['2']);
+            // Nếu độ lệch lớn hoặc có nguy cơ mất quân lớn, bật cảnh báo thế khó
+            if (diff >= 160 || Math.abs(evalScores['1']) >= 8000) {
+                statusEl.addClass('status-critical');
+                updateStatus('⚠️ THẾ CỜ KHÓ! Dừng lại tính kỹ 10-15 giây trước khi đi.');
+                return;
+            }
+        }
+        updateStatus();
+    }
+
+    function clearSelection() {
+        selectedSquare = null;
+        $('#myBoard .square-55d63').removeClass('highlight-selected possible-move');
+    }
+
+    function highlightSquares(source, target) {
+        $('#myBoard .square-55d63').removeClass('highlight-move');
+        $('#myBoard .square-' + source).addClass('highlight-move');
+        $('#myBoard .square-' + target).addClass('highlight-move');
+    }
+
+    function showLegalMoves(square) {
+        clearSelection();
+        var moves = game.moves({ square: square, verbose: true });
+        if (moves.length === 0) return;
+
+        selectedSquare = square;
+        $('#myBoard .square-' + square).addClass('highlight-selected');
+        moves.forEach(function(m) {
+            $('#myBoard .square-' + m.to).addClass('possible-move');
+        });
+    }
+
+    function handleMoveExecution(source, target) {
+        var move = game.move({
+            from: source,
+            to: target,
+            promotion: 'q'
+        });
+
+        if (move === null) return false;
+
+        clearSelection();
+        $('#status').removeClass('status-critical');
+        var uciMove = source + target + (move.promotion ? move.promotion : '');
+        moveHistoryUCI.push(uciMove);
+
+        board.position(game.fen());
+        highlightSquares(source, target);
+        updateStatus();
+
+        var userSide = $('#orientationSelect').val() === 'white' ? 'w' : 'b';
+        var isAutoEnabled = $('#autoReplyToggle').is(':checked');
+
+        if (isAutoEnabled && game.turn() !== userSide && !game.game_over()) {
+            window.setTimeout(triggerAIMove, 250);
+        }
+        return true;
+    }
+
+    $('#myBoard').on('click', '.square-55d63', function() {
+        if (game.game_over() || isThinking) return;
+
+        var clickedSquare = $(this).attr('data-square');
+        var pieceOnSquare = game.get(clickedSquare);
+
+        if (selectedSquare) {
+            if (selectedSquare === clickedSquare) {
+                clearSelection();
+                return;
+            }
+            var moved = handleMoveExecution(selectedSquare, clickedSquare);
+            if (!moved) {
+                if (pieceOnSquare && pieceOnSquare.color === game.turn()) {
+                    showLegalMoves(clickedSquare);
+                } else {
+                    clearSelection();
+                }
+            }
+        } else {
+            if (pieceOnSquare && pieceOnSquare.color === game.turn()) {
+                showLegalMoves(clickedSquare);
+            }
+        }
+    });
+
+    function onDragStart(source, piece) {
+        if (game.game_over() || isThinking) return false;
+        if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+            (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+            return false;
+        }
+        showLegalMoves(source);
+    }
+
+    function onDrop(source, target) {
+        var moved = handleMoveExecution(source, target);
+        if (!moved) return 'snapback';
+    }
+
+    function onSnapEnd() {
+        board.position(game.fen());
+    }
+
+    function triggerAIMove() {
+        if (!stockfish || game.game_over() || isThinking) return;
+
+        clearSelection();
+        isThinking = true;
+        updateStatus('AI đang đi...');
+
+        if (moveHistoryUCI.length > 0) {
+            stockfish.postMessage('position startpos moves ' + moveHistoryUCI.join(' '));
+        } else {
+            stockfish.postMessage('position startpos');
+        }
+        stockfish.postMessage('go movetime 250');
+    }
+
+    function executeBestMove(moveStr) {
+        var source = moveStr.substring(0, 2);
+        var target = moveStr.substring(2, 4);
+        var promotion = moveStr.substring(4, 5);
+
+        var move = game.move({
+            from: source,
+            to: target,
+            promotion: promotion ? promotion : 'q'
+        });
+
+        if (move) {
+            moveHistoryUCI.push(moveStr);
+            board.position(game.fen());
+            highlightSquares(source, target);
+        }
+
+        isThinking = false;
+        updateStatus();
+
+        var userSide = $('#orientationSelect').val() === 'white' ? 'w' : 'b';
+        if (game.turn() === userSide && !game.game_over()) {
+            evaluateUserTurnDifficulty();
+        }
+    }
+
+    function changeOrientation() {
+        var side = $('#orientationSelect').val();
+        board.orientation(side);
+        clearSelection();
+        updateStatus('Đã đổi phe sang ' + (side === 'white' ? 'Trắng' : 'Đen') + '.');
+    }
+
+    function undoMove() {
+        if (isThinking) return;
+        clearSelection();
+        $('#status').removeClass('status-critical');
+        game.undo();
+        game.undo();
+        moveHistoryUCI.pop();
+        moveHistoryUCI.pop();
+        board.position(game.fen());
+        $('#myBoard .square-55d63').removeClass('highlight-move');
+        updateStatus();
+    }
+
+    function resetGame() {
+        if (isThinking) return;
+        clearSelection();
+        $('#status').removeClass('status-critical');
+        game.reset();
+        moveHistoryUCI = [];
+        board.start();
+        if (stockfish) stockfish.postMessage('ucinewgame');
+        $('#myBoard .square-55d63').removeClass('highlight-move');
+        updateStatus('Đã làm mới bàn cờ!');
+    }
+
+    function updateStatus(customText) {
+        if (customText) {
+            $('#status').text(customText);
+            return;
+        }
+        var turn = game.turn() === 'w' ? 'Trắng' : 'Đen';
+        var text = 'Lượt: Quân ' + turn;
+        if (game.in_checkmate()) {
+            text = 'CHIẾU HẾT! Quân ' + (game.turn() === 'w' ? 'Đen' : 'Trắng') + ' thắng.';
+        } else if (game.in_draw()) {
+            text = 'HÒA CỜ!';
+        } else if (game.in_check()) {
+            text += ' (Đang bị chiếu!)';
+        }
+        $('#status').text(text);
+    }
+
+    function adjustBoardSize() {
+        var screenWidth = Math.min(window.innerWidth, 540);
+        $('#myBoard').css('width', screenWidth + 'px');
+        if (board) board.resize();
+    }
+
+    board = Chessboard('myBoard', {
+        draggable: true,
+        position: 'start',
+        pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
+        onDragStart: onDragStart,
+        onDrop: onDrop,
+        onSnapEnd: onSnapEnd
+    });
+
+    adjustBoardSize();
+    $(window).on('resize orientationchange', adjustBoardSize);
+
+    initStockfish();
+</script>
+
+</body>
+</html>
