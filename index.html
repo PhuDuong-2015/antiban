@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Cờ Vua AI - Luyện Tập Nhận Diện Thế Khó</title>
+    <title>Cờ Vua AI - Luyện Tập Mọi Mức Elo</title>
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
         :root {
@@ -153,13 +153,22 @@
             font-size: 14px;
             font-weight: 600;
             color: var(--text);
-            transition: all 0.25s ease;
+            transition: all 0.2s ease;
+        }
+
+        /* Hiệu ứng chớp nháy cực kỳ nổi bật cho thế cờ khó */
+        @keyframes pulseAlert {
+            0% { background-color: rgba(239, 68, 68, 0.4); border-color: #ef4444; transform: scale(1); }
+            50% { background-color: rgba(245, 158, 11, 0.85); border-color: #f59e0b; transform: scale(1.02); }
+            100% { background-color: rgba(239, 68, 68, 0.4); border-color: #ef4444; transform: scale(1); }
         }
 
         .status-critical {
-            background: rgba(245, 158, 11, 0.25);
-            border-color: var(--warning);
-            color: #fde68a;
+            animation: pulseAlert 0.9s infinite ease-in-out;
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 15px;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
         }
 
         .highlight-move {
@@ -195,7 +204,7 @@
                 <span>Phe:</span>
                 <select id="orientationSelect" onchange="changeOrientation()">
                     <option value="white">Trắng</option>
-                    <option value="black">Đen</option>
+                    <option value="black">Den</option>
                 </select>
             </div>
 
@@ -206,7 +215,12 @@
                     <option value="500">500 (Thực chiến)</option>
                     <option value="650" selected>650 (Mục tiêu)</option>
                     <option value="800">800 (Nâng cao)</option>
-                    <option value="1100">1100 (Thử thách)</option>
+                    <option value="1100">1100 (Cao thủ)</option>
+                    <option value="1600">1600 (Chuyên gia)</option>
+                    <option value="1700">1700 (Kiện tướng tập sự)</option>
+                    <option value="1800">1800 (Bậc thầy)</option>
+                    <option value="1900">1900 (Siêu sao)</option>
+                    <option value="2000">2000 (Đỉnh cao)</option>
                 </select>
             </div>
 
@@ -279,7 +293,7 @@
             stockfish = new Worker(workerUrl);
             stockfish.postMessage('uci');
             stockfish.postMessage('setoption name Hash value 16');
-            stockfish.postMessage('setoption name MultiPV value 2'); // Phân tích 2 nhánh để bắt thế khó
+            stockfish.postMessage('setoption name MultiPV value 2');
             stockfish.postMessage('setoption name UCI_LimitStrength value true');
             stockfish.postMessage('setoption name UCI_Elo value 650');
             stockfish.postMessage('ucinewgame');
@@ -312,7 +326,7 @@
                     }
                 }
             };
-            updateStatus('Sẵn sàng luyện tập (Mức 650 Elo)! Chạm quân để đánh.');
+            updateStatus('Sẵn sàng luyện tập! Chạm quân để đánh.');
         } catch (error) {
             updateStatus('Lỗi mạng: Không tải được Stockfish.');
         }
@@ -336,10 +350,9 @@
 
         if (evalScores['1'] !== undefined && evalScores['2'] !== undefined) {
             var diff = Math.abs(evalScores['1'] - evalScores['2']);
-            // Nếu độ lệch lớn hoặc có nguy cơ mất quân lớn, bật cảnh báo thế khó
-            if (diff >= 160 || Math.abs(evalScores['1']) >= 8000) {
+            if (diff >= 150 || Math.abs(evalScores['1']) >= 7500) {
                 statusEl.addClass('status-critical');
-                updateStatus('⚠️ THẾ CỜ KHÓ! Dừng lại tính kỹ 10-15 giây trước khi đi.');
+                statusEl.html('🚨 THẾ CỜ CỰC KỲ KHÓ! DỪNG LẠI TÍNH KỸ 10-15S! 🚨');
                 return;
             }
         }
@@ -515,6 +528,7 @@
 
     function updateStatus(customText) {
         if (customText) {
+            $('#status').removeClass('status-critical');
             $('#status').text(customText);
             return;
         }
